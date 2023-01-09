@@ -124,8 +124,8 @@ std::string SubProcess::sp_read(const int count) const
     if (rv == -1)
         throw std::runtime_error("Read error from pipe");
 
-    // Wrap the buffer in a string and return it
-    std::string retval(buff.get(), rv);
+    // Wrap the buffer in a string and return it, removing the \n
+    std::string retval(buff.get(), rv - 1);
     return retval;
 }
 
