@@ -1,8 +1,7 @@
 #include <iostream>
-#include <unistd.h>
 #include <chrono>
 
-#include "helper.hpp"
+#include "childprocess.hpp"
 
 namespace
 {
@@ -15,7 +14,7 @@ namespace
 
         ~Timer()
         {
-            std::cout << durationInSeconds(steady_clock::now() - m_start) << "s" << std::endl;
+            std::cout << Timer::durationInSeconds(steady_clock::now() - m_start) << "s" << std::endl;
         }
 
         // Utility: convert the duration count in seconds
@@ -31,15 +30,15 @@ namespace
 
 int main(int argc, char *argv[])
 {
-    SubProcess proc("./SoftHeart");
+    ChildProcess child("./SoftHeart");
 
     std::string input, output;
 
     input = "u3tp-simple";
     std::cout << input << std::endl;
-    proc.sp_write(input);
+    child.writeToChild(input);
     
-    output = proc.sp_read(100);
+    output = child.readFromChild(100);
     std::cout << output << std::endl;
 
     if(output != "u3tp-simpleok")
@@ -47,7 +46,7 @@ int main(int argc, char *argv[])
     
     input = "setconstraint -time move 5s";
     std::cout << input << std::endl;
-    proc.sp_write(input);
+    child.writeToChild(input);
 
     for(int i = 0 ; i < 5; ++i)
     {
@@ -55,9 +54,9 @@ int main(int argc, char *argv[])
             Timer t;
             input = "go";
             std::cout << input << std::endl;
-            proc.sp_write(input);
+            child.writeToChild(input);
 
-            output = proc.sp_read(100);
+            output = child.readFromChild(100);
             std::cout << output << std::endl;
         }
 
@@ -65,12 +64,12 @@ int main(int argc, char *argv[])
         input.push_back(output[0]);
         input.push_back(output[1]);
         std::cout << input << std::endl;
-        proc.sp_write(input);
+        child.writeToChild(input);
     }
 
     input = "quit";
     std::cout << input << std::endl;
-    proc.sp_write(input);
+    child.writeToChild(input);
 
     return 0;
 }
