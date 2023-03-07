@@ -1,23 +1,15 @@
 #pragma once
 
-// #if __unix__ || __APPLE__
+#if __unix__ || __APPLE__
 #include <string>
 #include <vector>
 #include <memory>
 #include <stdexcept>
+#include <string.h>
 
 #include <unistd.h>
 #include <signal.h>
 #include <sys/wait.h>
-
-/*
-TODO:
-  1. Gestire sigchild
-  2.    
-    2a. Stop using execl and start using execv
-    2b. Implement the first constructor
-    3c. Implement the other calling the first
-*/
 
 /*
 Create a sub process and communicate with stdin/stdout
@@ -26,32 +18,29 @@ class ChildProcess
 {
 public:
     // Constructors
-    ChildProcess(const std::string, const std::vector<std::string>);
-    ChildProcess(const std::string);
+    ChildProcess(const std::string name, const std::vector<std::string> argv);
+    ChildProcess(const std::string name) : ChildProcess(name, std::vector<std::string>{}) {}
     ChildProcess() = delete;
 
     // Destructor
     ~ChildProcess();
 
     // Read and write operation
-    std::string readFromChild(const int) const;
-    void writeToChild(std::string) const;
+    std::string readFromChild(const int);
+    void writeToChild(std::string);
 
     // Kill
     void forceKill();
 
 private:
+    bool isDead();
+
     int m_fdR, m_fdW;  // File descriptors of the pipes
     int m_pidChild;    // Pid of the child process
     bool m_isAlive;    // State of the child process
 };
 
 ChildProcess::ChildProcess(const std::string name, const std::vector<std::string> argv)
-{
-    return;  // TODO
-}
-
-ChildProcess::ChildProcess(const std::string name)
 {
     int fd1[2];
     int fd2[2];
@@ -89,10 +78,21 @@ ChildProcess::ChildProcess(const std::string name)
 
             close(fd2[1]);
         }
+        
+        // Convert C++ style argv into C style c_argv
+        char** c_argv = new char* [argv.size() + 2];
+        c_argv[0] = new char[name.size() + 1];
+        strncpy(c_argv[0], name.c_str(), name.size() + 1);
+        for (size_t i = 0; i < argv.size(); ++i)
+        {
+            c_argv[i+1] = new char[argv[i].size() + 1];
+            strncpy(c_argv[i+1], argv[i].c_str(), argv[i].size() + 1);
+        }
+        c_argv[argv.size() + 1] = NULL;
 
         // Launch the other program
-        if (execl(name.c_str(), name.c_str(), NULL) < 0)
-            throw std::runtime_error("execl error");
+        if (execv(name.c_str(), c_argv) < 0)
+            throw std::runtime_error("execv error");
     }
     else  // PARENT PROCESS
     {
@@ -110,6 +110,9 @@ ChildProcess::ChildProcess(const std::string name)
 
 ChildProcess::~ChildProcess()
 {   
+    if(isDead())
+        return;
+    
     // Signal the child to terminate
     kill(m_pidChild, SIGTERM);
 
@@ -117,8 +120,11 @@ ChildProcess::~ChildProcess()
     waitpid(m_pidChild, NULL, 0);
 }
 
-std::string ChildProcess::readFromChild(const int count) const
+std::string ChildProcess::readFromChild(const int count)
 {
+    if(isDead())
+        throw std::runtime_error("Child is dead");
+    
     // Create the buffer
     auto buff = std::make_unique<char[]>(count + 1);
 
@@ -136,8 +142,11 @@ std::string ChildProcess::readFromChild(const int count) const
     return retval;
 }
 
-void ChildProcess::writeToChild(std::string str) const
+void ChildProcess::writeToChild(std::string str)
 {
+    if(isDead())
+        throw std::runtime_error("Child is dead");
+    
     // Append the line feed to the string
     str += '\n';
 
@@ -148,16 +157,37 @@ void ChildProcess::writeToChild(std::string str) const
 
 void ChildProcess::forceKill()
 {
-    return;  // TODO
+    if(isDead())
+        return;
+
+    // Signal the child to terminate
+    kill(m_pidChild, SIGTERM);
+
+    // Wait the child to terminate to cleanup the process table
+    waitpid(m_pidChild, NULL, 0);
+    m_isAlive = false;
+}
+
+bool ChildProcess::isDead()
+{
+    if(!m_isAlive)
+        return false;
+    
+    // If the child is dead waitpid returns m_pidChild, otherwise 0
+    if(m_pidChild == waitpid(m_pidChild, NULL, WNOHANG))
+    {
+        m_isAlive = false;
+        return false;
+    }
 }
 
 
-//#elif _WIN32
+#elif _WIN32
     // Windows.h code
 /*
 TODO:
   Implementare l'equivalente Windows
 */
-//#else
+#else
     // NO CODE
-//#endif
+#endif
