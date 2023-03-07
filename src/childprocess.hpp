@@ -33,11 +33,9 @@ public:
     void forceKill();
 
 private:
-    bool isDead();
-
     int m_fdR, m_fdW;  // File descriptors of the pipes
     int m_pidChild;    // Pid of the child process
-    bool m_isAlive;    // State of the child process
+    bool m_alreadyKilled;
 };
 
 ChildProcess::ChildProcess(const std::string name, const std::vector<std::string> argv)
@@ -104,27 +102,17 @@ ChildProcess::ChildProcess(const std::string name, const std::vector<std::string
         m_fdR = fd2[0];
         m_fdW = fd1[1];
         m_pidChild = pid;
-        m_isAlive = true;
+        m_alreadyKilled = false;
     }
 }
 
 ChildProcess::~ChildProcess()
 {   
-    if(isDead())
-        return;
-    
-    // Signal the child to terminate
-    kill(m_pidChild, SIGTERM);
-
-    // Wait the child to terminate to cleanup the process table
-    waitpid(m_pidChild, NULL, 0);
+    forceKill();
 }
 
 std::string ChildProcess::readFromChild(const int count)
 {
-    if(isDead())
-        throw std::runtime_error("Child is dead");
-    
     // Create the buffer
     auto buff = std::make_unique<char[]>(count + 1);
 
@@ -144,9 +132,6 @@ std::string ChildProcess::readFromChild(const int count)
 
 void ChildProcess::writeToChild(std::string str)
 {
-    if(isDead())
-        throw std::runtime_error("Child is dead");
-    
     // Append the line feed to the string
     str += '\n';
 
@@ -157,7 +142,13 @@ void ChildProcess::writeToChild(std::string str)
 
 void ChildProcess::forceKill()
 {
-    if(isDead())
+    if(m_alreadyKilled)
+        return;
+
+    // Switch the flag
+    m_alreadyKilled = true;
+
+    if(m_pidChild == waitpid(m_pidChild, NULL, WNOHANG))
         return;
 
     // Signal the child to terminate
@@ -165,24 +156,7 @@ void ChildProcess::forceKill()
 
     // Wait the child to terminate to cleanup the process table
     waitpid(m_pidChild, NULL, 0);
-    m_isAlive = false;
 }
-
-bool ChildProcess::isDead()
-{
-    if(!m_isAlive)
-        return true;
-    
-    // If the child is dead waitpid returns m_pidChild, otherwise 0
-    if(m_pidChild == waitpid(m_pidChild, NULL, WNOHANG))
-    {
-        m_isAlive = false;
-        return true;
-    }
-
-    return false;
-}
-
 
 #elif _WIN32
     // Windows.h code
