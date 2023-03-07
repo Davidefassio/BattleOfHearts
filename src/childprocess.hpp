@@ -171,14 +171,16 @@ void ChildProcess::forceKill()
 bool ChildProcess::isDead()
 {
     if(!m_isAlive)
-        return false;
+        return true;
     
     // If the child is dead waitpid returns m_pidChild, otherwise 0
     if(m_pidChild == waitpid(m_pidChild, NULL, WNOHANG))
     {
         m_isAlive = false;
-        return false;
+        return true;
     }
+
+    return false;
 }
 
 
