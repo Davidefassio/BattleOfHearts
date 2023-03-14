@@ -1,2 +1,2 @@
 # BattleOfHearts
-A program made to make two instances of SoftHeart play each other
+A program made to make two instances of SoftHeart play against each other
