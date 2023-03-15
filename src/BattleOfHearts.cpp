@@ -1,7 +1,7 @@
 #include <iostream>
 #include <chrono>
 
-#include "lib/tiny-process/process.hpp"
+#include "../lib/tiny-process/process.hpp"
 
 using namespace TinyProcess;
 
