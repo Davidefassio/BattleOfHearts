@@ -9,10 +9,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # specify compiler options
 if (MSVC)
-    # warning level 4
-    add_compile_options(/O3)
+    add_compile_options(/O2)
 else()
-    # additional warnings
     add_compile_options(-O3)
 endif()
 
