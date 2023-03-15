@@ -12,7 +12,7 @@ namespace
     class Timer
     {
     public:
-        Timer() : m_start(m_start = steady_clock::now()) {}
+        Timer() : m_start(steady_clock::now()) {}
 
         ~Timer()
         {
